@@ -36,7 +36,7 @@ const PROFILE = {
   name: "Tarun Narayanan",
   role: "Data Science & ML Engineer",
   sub: "Integrated M.Tech, Computer Science (Business Analytics) — VIT Chennai",
-  status: "currently interning @ Tiger Analytics — DELVE AIML program",
+  status: "Building AI, Machine Learning & Analytics projects",
   bio: "I work at the intersection of applied machine learning, quantitative forecasting, and embedded intelligence — equally comfortable tracing a signal through a vibration sensor as through a volatility model. My interests run from deep learning and time-series forecasting to hardware experiments and business analytics.",
   email: "rtn3912@gmail.com",
   github: "https://github.com/treyyy06",
@@ -53,7 +53,7 @@ const EXPERIENCE = [
   {
     org: "Tiger Analytics",
     role: "Data Science / AIML Intern — DELVE AIML Program",
-    time: "Present",
+    time: "Prior",
     points: [
       "Ran an end-to-end EDA on retail store-level sales data (Module 3), packaged as a complete repository.",
     ],
