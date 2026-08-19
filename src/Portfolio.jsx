@@ -158,6 +158,19 @@ const SKILLS = [
     items: ["ESP32 / embedded signal processing", "Java / Spring Boot"],
   },
   {
+    group: "Management & Operations",
+    items: [
+      "Project Coordination",
+      "Stakeholder Management",
+      "Vendor Management",
+      "CRM Workflow Management",
+      "Cross-functional Collaboration",
+      "Operations Management",
+      "Project Planning",
+      "Business Operations",
+    ],
+  },
+  {
     group: "Emerging",
     items: ["Qiskit", "PennyLane", "Web3 fundamentals"],
   },
