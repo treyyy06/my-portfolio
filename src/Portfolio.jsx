@@ -51,20 +51,22 @@ const STATS = [
 
 const EXPERIENCE = [
   {
-    org: "Tiger Analytics",
-    role: "Data Science / AIML Intern — DELVE AIML Program",
-    time: "Prior",
-    points: [
-      "Ran an end-to-end EDA on retail store-level sales data (Module 3), packaged as a complete repository.",
-    ],
+    org: "Green Tiger Mobility Pvt. Ltd.",
+    role: "Project Manager Intern",
+    time: "August 5, 2026 – Present",
+    desc: "Currently working as a Project Manager Intern, coordinating with vendors, dealers, and internal teams to support smooth project execution and day-to-day operations. Responsible for coordinating CRM workflows, managing Google Business Profile and location mapping activities, supporting dealer onboarding and launch activities, and ensuring effective communication and follow-ups across stakeholders.",
   },
   {
-    org: "Tata Communications",
-    role: "Data Engineering Intern",
-    time: "Prior",
-    points: [
-      "Worked on data engineering pipelines and infrastructure as part of the broader analytics/data platform team.",
-    ],
+    org: "Tiger Analytics",
+    role: "DELVE AIML Intern",
+    time: "May 2026 – July 2026",
+    desc: "Worked on AI/ML and analytics-driven solutions in an enterprise environment, gaining hands-on experience with machine learning techniques, business intelligence applications, exploratory data analysis, data preprocessing, and machine learning model development.",
+  },
+  {
+    org: "Tata Communications Ltd",
+    role: "Data Engineer Intern",
+    time: "June 2025 – July 2025",
+    desc: "Built and maintained ETL pipelines for data ingestion, cleaning, and transformation, managed structured datasets using PostgreSQL, developed Power BI dashboards for operational decision-making, and documented data models, schemas, and workflow architecture including HLD/LLD.",
   },
 ];
 
@@ -574,13 +576,11 @@ export default function Portfolio() {
           letter-spacing: 0.06em;
           margin-top: 6px;
         }
-        .timeline-points {
+        .timeline-desc {
           margin: 14px 0 0;
-          padding-left: 18px;
           color: var(--text-muted);
           font-size: 14.5px;
         }
-        .timeline-points li { margin-bottom: 7px; }
 
         /* PROJECT FILTERS */
         .filter-row {
@@ -882,11 +882,7 @@ export default function Portfolio() {
                 <div className="timeline-org">{e.org}</div>
                 <div className="timeline-role">{e.role}</div>
                 <div className="timeline-time">{e.time}</div>
-                <ul className="timeline-points">
-                  {e.points.map((p, i) => (
-                    <li key={i}>{p}</li>
-                  ))}
-                </ul>
+                <p className="timeline-desc">{e.desc}</p>
               </div>
             ))}
           </div>
