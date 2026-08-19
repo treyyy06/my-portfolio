@@ -283,12 +283,559 @@ function ProjectModal({ project, onClose }) {
 }
 
 /* ---------------------------------------------------------
+   KNEE OSTEOARTHRITIS SCANNER UTILITIES
+--------------------------------------------------------- */
+
+const KNEE_GRADES = [
+  {
+    grade: 0,
+    title: "KL Grade 0 (Normal)",
+    desc: "Healthy knee joint structure. The joint space is fully preserved with wide clearance, indicating complete cartilage health. Bone margins are smooth with zero osteophyte development.",
+    metrics: { gap: "22mm", spurs: "None", sclerosis: "None", confidence: "98.7%" },
+  },
+  {
+    grade: 1,
+    title: "KL Grade 1 (Doubtful)",
+    desc: "Doubtful joint space narrowing and possible osteophytic lipping. Minor bone protrusions are starting to form at the joint edges, though cartilage height remains mostly normal.",
+    metrics: { gap: "18mm", spurs: "Possible", sclerosis: "None", confidence: "94.2%" },
+  },
+  {
+    grade: 2,
+    title: "KL Grade 2 (Mild)",
+    desc: "Definite osteophyte formation (bone spurs) at the margins. The joint space shows early narrowing, signaling initial cartilage wear. This is the threshold for clinically positive Osteoarthritis.",
+    metrics: { gap: "12mm", spurs: "Definite", sclerosis: "Doubtful", confidence: "91.8%" },
+  },
+  {
+    grade: 3,
+    title: "KL Grade 3 (Moderate)",
+    desc: "Moderate joint space narrowing with multiple osteophytes. Subchondral bone thickening (sclerosis) is visible as the joint gap decreases, causing early bone-on-bone compression.",
+    metrics: { gap: "6mm", spurs: "Multiple", sclerosis: "Definite", confidence: "93.5%" },
+  },
+  {
+    grade: 4,
+    title: "KL Grade 4 (Severe)",
+    desc: "Severe joint space narrowing with bone-on-bone contact. Large osteophytes are present, and the cartilage is almost entirely depleted. Sclerosis and joint deformity are highly pronounced.",
+    metrics: { gap: "2mm", spurs: "Large/Severe", sclerosis: "Severe", confidence: "96.4%" },
+  },
+];
+
+function KneeJointSVG({ grade, showHeatmap }) {
+  const gapOffsets = [0, 4, 10, 16, 22]; // offset to move tibia upwards
+  const offset = gapOffsets[grade];
+  const osteophyteLeft = grade >= 2 ? "L 15,145 L 20,150" : "";
+  const osteophyteRight = grade >= 2 ? "L 180,150 L 185,145" : "";
+  const sclerosisColor = grade >= 3 ? "rgba(110, 231, 192, 0.45)" : "transparent";
+
+  return (
+    <svg viewBox="0 0 200 200" className="knee-svg">
+      <defs>
+        <radialGradient id="heatmap-grad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#f5b454" stopOpacity="0.8" />
+          <stop offset="40%" stopColor="#ff4646" stopOpacity="0.55" />
+          <stop offset="70%" stopColor="#ff4646" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="#ff4646" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="bone-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#1e2638" />
+          <stop offset="100%" stopColor="#10141f" />
+        </linearGradient>
+      </defs>
+
+      <rect width="200" height="200" fill="#0c1017" rx="8" />
+      <g stroke="#1a2233" strokeWidth="0.5" strokeDasharray="3,3">
+        <line x1="20" y1="0" x2="20" y2="200" />
+        <line x1="60" y1="0" x2="60" y2="200" />
+        <line x1="100" y1="0" x2="100" y2="200" />
+        <line x1="140" y1="0" x2="140" y2="200" />
+        <line x1="180" y1="0" x2="180" y2="200" />
+        <line x1="0" y1="40" x2="200" y2="40" />
+        <line x1="0" y1="80" x2="200" y2="80" />
+        <line x1="0" y1="120" x2="200" y2="120" />
+        <line x1="0" y1="160" x2="200" y2="160" />
+      </g>
+
+      <path
+        d="M 35,10 L 35,90 C 35,120 70,125 80,125 C 90,125 95,115 100,115 C 105,115 110,125 120,125 C 130,125 165,120 165,90 L 165,10 Z"
+        fill="url(#bone-grad)"
+        stroke="#4f5e7f"
+        strokeWidth="2"
+      />
+
+      <g transform={`translate(0, ${-offset})`}>
+        <path
+          d={`M 35,190 L 35,150 ${osteophyteLeft} C 45,150 70,147 85,147 C 92,147 95,142 98,142 C 102,142 105,147 115,147 C 130,147 155,150 165,150 ${osteophyteRight} L 165,190 Z`}
+          fill="url(#bone-grad)"
+          stroke="#4f5e7f"
+          strokeWidth="2"
+        />
+        <path 
+          d="M 50,147 C 70,145 130,145 150,147" 
+          fill="none" 
+          stroke={sclerosisColor} 
+          strokeWidth={grade >= 4 ? "4" : "2"} 
+          filter="blur(1px)"
+        />
+      </g>
+
+      {!showHeatmap && (
+        <g opacity="0.4">
+          <line x1="100" y1="124" x2="100" y2={148 - offset} stroke="var(--teal)" strokeWidth="1" strokeDasharray="2,2" />
+          <text x="105" y={139 - offset / 2} fill="var(--teal)" fontSize="7" fontFamily="monospace">
+            GAP: {Math.max(22 - offset, 2)}mm
+          </text>
+        </g>
+      )}
+
+      {showHeatmap && (
+        <ellipse
+          cx="100"
+          cy={136 - offset / 2}
+          rx="45"
+          ry="25"
+          fill="url(#heatmap-grad)"
+          style={{ animation: "pulse 2s ease-in-out infinite" }}
+        />
+      )}
+    </svg>
+  );
+}
+
+function VolatilityForecastTool() {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawnPoints, setDrawnPoints] = useState([]);
+  const [width, setWidth] = useState(600);
+  
+  const historyPoints = useRef([]);
+  if (historyPoints.current.length === 0) {
+    const steps = 30;
+    for (let i = 0; i <= steps; i++) {
+      const x = (i / steps) * 0.5;
+      const angle = (i / steps) * Math.PI * 2.5;
+      const y = 0.52 + Math.sin(angle) * 0.12 + Math.sin(i * 0.4) * 0.04;
+      historyPoints.current.push({ x, y });
+    }
+  }
+
+  const { combined, volPct, lastPoint, forecastPoints, slope } = React.useMemo(() => {
+    const combined = [...historyPoints.current, ...drawnPoints].sort((a, b) => a.x - b.x);
+    
+    let stdDev = 0.02;
+    if (combined.length > 1) {
+      const diffs = [];
+      for (let i = 1; i < combined.length; i++) {
+        diffs.push(combined[i].y - combined[i - 1].y);
+      }
+      const meanDiff = diffs.reduce((sum, v) => sum + v, 0) / diffs.length;
+      const variance = diffs.reduce((sum, v) => sum + Math.pow(v - meanDiff, 2), 0) / diffs.length;
+      stdDev = Math.max(Math.sqrt(variance), 0.015);
+    }
+
+    const volPct = Math.round(stdDev * 800);
+    const lastPoint = combined[combined.length - 1];
+    const forecastStart = lastPoint.x;
+    const forecastPoints = [];
+    
+    let slope = 0;
+    if (combined.length >= 10) {
+      const subset = combined.slice(-10);
+      const firstSub = subset[0];
+      const lastSub = subset[subset.length - 1];
+      if (lastSub.x !== firstSub.x) {
+        slope = (lastSub.y - firstSub.y) / (lastSub.x - firstSub.x);
+      }
+    }
+    
+    if (forecastStart < 1.0) {
+      const forecastSteps = 25;
+      for (let i = 1; i <= forecastSteps; i++) {
+        const x = forecastStart + (i / forecastSteps) * (1.0 - forecastStart);
+        const dt = x - forecastStart;
+        let yMean = lastPoint.y + slope * dt;
+        yMean = Math.max(0.1, Math.min(0.9, yMean));
+        const bandWidth1 = stdDev * Math.sqrt(dt) * 1.5;
+        const bandWidth2 = stdDev * Math.sqrt(dt) * 3.0;
+        
+        forecastPoints.push({
+          x,
+          yMean,
+          upper1: Math.max(0.05, yMean - bandWidth1),
+          lower1: Math.min(0.95, yMean + bandWidth1),
+          upper2: Math.max(0.02, yMean - bandWidth2),
+          lower2: Math.min(0.98, yMean + bandWidth2),
+        });
+      }
+    }
+
+    return { combined, stdDev, volPct, lastPoint, forecastPoints, slope };
+  }, [drawnPoints]);
+
+  const handleDrawStart = (e) => {
+    setIsDrawing(true);
+    handleDrawMove(e);
+  };
+
+  const handleDrawMove = (e) => {
+    if (!isDrawing && e.type !== "mousedown") return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    if (clientX === undefined || clientY === undefined) return;
+    
+    const x = (clientX - rect.left) / rect.width;
+    const y = (clientY - rect.top) / rect.height;
+    
+    if (x > 0.5 && x <= 1.0 && y >= 0.0 && y <= 1.0) {
+      setDrawnPoints((prev) => {
+        const filtered = prev.filter((p) => Math.abs(p.x - x) > 0.015);
+        return [...filtered, { x, y }].sort((a, b) => a.x - b.x);
+      });
+    }
+  };
+
+  const handleDrawEnd = () => {
+    setIsDrawing(false);
+  };
+
+  const resetPath = () => {
+    setDrawnPoints([]);
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    
+    const w = rect.width;
+    const h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+    
+    ctx.strokeStyle = "#161b26";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    for (let x = 0.1; x < 1.0; x += 0.1) {
+      ctx.beginPath();
+      ctx.moveTo(x * w, 0);
+      ctx.lineTo(x * w, h);
+      ctx.stroke();
+    }
+    for (let y = 0.2; y < 1.0; y += 0.2) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * h);
+      ctx.lineTo(w, y * h);
+      ctx.stroke();
+    }
+    
+    ctx.strokeStyle = "#232a38";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(0.5 * w, 0);
+    ctx.lineTo(0.5 * w, h);
+    ctx.stroke();
+    
+    ctx.fillStyle = "#545c70";
+    ctx.font = "9px JetBrains Mono, monospace";
+    ctx.fillText("HISTORICAL RUN", 12, 18);
+    
+    ctx.fillStyle = "var(--teal)";
+    ctx.fillText("FORECAST AREA (CLICK & DRAW HERE)", 0.5 * w + 12, 18);
+    
+    if (forecastPoints.length > 0) {
+      const startX = lastPoint.x * w;
+      ctx.fillStyle = "rgba(110, 231, 192, 0.06)";
+      ctx.beginPath();
+      ctx.moveTo(startX, lastPoint.y * h);
+      forecastPoints.forEach((p) => {
+        ctx.lineTo(p.x * w, p.upper2 * h);
+      });
+      for (let i = forecastPoints.length - 1; i >= 0; i--) {
+        ctx.lineTo(forecastPoints[i].x * w, forecastPoints[i].lower2 * h);
+      }
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.fillStyle = "rgba(110, 231, 192, 0.12)";
+      ctx.beginPath();
+      ctx.moveTo(startX, lastPoint.y * h);
+      forecastPoints.forEach((p) => {
+        ctx.lineTo(p.x * w, p.upper1 * h);
+      });
+      for (let i = forecastPoints.length - 1; i >= 0; i--) {
+        ctx.lineTo(forecastPoints[i].x * w, forecastPoints[i].lower1 * h);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+    
+    ctx.strokeStyle = "#8892a6";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(historyPoints.current[0].x * w, historyPoints.current[0].y * h);
+    historyPoints.current.forEach((p) => {
+      ctx.lineTo(p.x * w, p.y * h);
+    });
+    ctx.stroke();
+    
+    if (drawnPoints.length > 0) {
+      ctx.strokeStyle = "var(--teal)";
+      ctx.lineWidth = 3.0;
+      ctx.beginPath();
+      ctx.moveTo(drawnPoints[0].x * w, drawnPoints[0].y * h);
+      drawnPoints.forEach((p) => {
+        ctx.lineTo(p.x * w, p.y * h);
+      });
+      ctx.stroke();
+    }
+    
+    if (forecastPoints.length > 0) {
+      ctx.strokeStyle = "var(--teal)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(lastPoint.x * w, lastPoint.y * h);
+      forecastPoints.forEach((p) => {
+        ctx.lineTo(p.x * w, p.yMean * h);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    
+    ctx.fillStyle = "var(--teal)";
+    ctx.beginPath();
+    ctx.arc(lastPoint.x * w, lastPoint.y * h, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = "rgba(110, 231, 192, 0.4)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(lastPoint.x * w, lastPoint.y * h, 7.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }, [drawnPoints, width, forecastPoints, lastPoint]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        setWidth(canvas.clientWidth);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    handleResize();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return (
+    <div className="vol-tool-layout">
+      <div>
+        <div className="vol-canvas-container"
+          onMouseDown={handleDrawStart}
+          onMouseMove={handleDrawMove}
+          onMouseUp={handleDrawEnd}
+          onMouseLeave={handleDrawEnd}
+          onTouchStart={handleDrawStart}
+          onTouchMove={handleDrawMove}
+          onTouchEnd={handleDrawEnd}
+        >
+          <canvas ref={canvasRef} className="vol-canvas" />
+        </div>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 10, textAlign: "left" }} className="mono">
+          * Drag inside the forecast area on the right to sketch out price trajectories and watch the uncertainty bounds contract or expand.
+        </p>
+      </div>
+      
+      <div className="vol-info">
+        <h3 style={{ fontSize: 18, fontWeight: 600, textAlign: "left" }}>Volatility Telemetry</h3>
+        <p style={{ fontSize: 13.5, color: "var(--text-muted)", textAlign: "left" }}>
+          In quantitative risk management, volatility determines option pricing and risk bands. Drawing wild, erratic movements aggregates higher variances, triggering GARCH-like expansions in the confidence bands.
+        </p>
+        
+        <div className="vol-stat-grid">
+          <div className="vol-stat-card">
+            <div className="vol-stat-title">Volatility Index</div>
+            <div className="vol-stat-value text-amber">{volPct} units</div>
+          </div>
+          <div className="vol-stat-card">
+            <div className="vol-stat-title">Trend Drift</div>
+            <div className="vol-stat-value">{slope > 0 ? "+" : ""}{Math.round(slope * -100)}%</div>
+          </div>
+          <div className="vol-stat-card">
+            <div className="vol-stat-title">Data Points</div>
+            <div className="vol-stat-value">{combined.length} pts</div>
+          </div>
+          <div className="vol-stat-card">
+            <div className="vol-stat-title">Forecasting</div>
+            <div className="vol-stat-value text-teal">{forecastPoints.length > 0 ? "LIVE" : "DONE"}</div>
+          </div>
+        </div>
+        
+        <button className="btn btn-primary" onClick={resetPath} style={{ alignSelf: "start", marginTop: 8 }}>
+          Reset Draw Path
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function KneeClassifierTool() {
+  const [selectedGrade, setSelectedGrade] = useState(0);
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [logs, setLogs] = useState([]);
+  const [scanCompleted, setScanCompleted] = useState(true);
+
+  const selectGrade = (gradeIndex) => {
+    if (gradeIndex === selectedGrade && scanCompleted) return;
+    
+    setSelectedGrade(gradeIndex);
+    setScanning(true);
+    setScanCompleted(false);
+    setScanProgress(0);
+    
+    const steps = [
+      { t: 0, progress: 5, log: "[1/3] Loading CNN weights (EfficientNetB3 backbone)..." },
+      { t: 400, progress: 35, log: "[2/3] Extracting high-level features from articular cartilage gap..." },
+      { t: 900, progress: 68, log: "[3/3] Generating Class Activation Map (Grad-CAM)..." },
+      { t: 1400, progress: 100, log: "Classification output generated successfully." }
+    ];
+
+    setLogs([steps[0].log]);
+    
+    steps.forEach((step, idx) => {
+      setTimeout(() => {
+        setScanProgress(step.progress);
+        if (idx > 0) {
+          setLogs((prev) => [...prev, step.log]);
+        }
+        if (idx === steps.length - 1) {
+          setScanning(false);
+          setScanCompleted(true);
+        }
+      }, step.t);
+    });
+  };
+
+  const activeData = KNEE_GRADES[selectedGrade];
+
+  return (
+    <div className="knee-tool-layout">
+      <div className="knee-selector-column">
+        <h3 style={{ fontSize: 18, fontWeight: 600, textAlign: "left", marginBottom: 6 }}>Select Knee Joint (X-Ray)</h3>
+        {KNEE_GRADES.map((k) => (
+          <button
+            key={k.grade}
+            className={`knee-option-card ${selectedGrade === k.grade ? "active" : ""}`}
+            onClick={() => selectGrade(k.grade)}
+            disabled={scanning}
+          >
+            <div className="knee-option-title">{k.title}</div>
+            <div className="knee-option-desc">{k.desc.substring(0, 85)}...</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="knee-visualizer-column">
+        <div className="knee-scanner-frame">
+          {scanning && <div className="scanline" />}
+          <KneeJointSVG grade={selectedGrade} showHeatmap={scanCompleted && !scanning} />
+        </div>
+
+        <div className="scanner-log">
+          {logs.map((log, idx) => (
+            <div key={idx} style={{ textAlign: "left" }}>
+              &gt; {log}
+            </div>
+          ))}
+          {scanning && (
+            <div style={{ textAlign: "left", marginTop: 4, color: "var(--amber)" }}>
+              Analyzing... {scanProgress}%
+            </div>
+          )}
+        </div>
+
+        {scanCompleted && !scanning && (
+          <div className="knee-results">
+            <h4 style={{ fontSize: 16, fontWeight: 600, color: "var(--teal)", textAlign: "left", margin: "0 0 12px" }}>
+              Inference Diagnostics
+            </h4>
+            
+            <div className="vol-stat-grid" style={{ marginBottom: 12 }}>
+              <div className="vol-stat-card">
+                <div className="vol-stat-title">Detected Gap</div>
+                <div className="vol-stat-value">{activeData.metrics.gap}</div>
+              </div>
+              <div className="vol-stat-card">
+                <div className="vol-stat-title">Confidence</div>
+                <div className="vol-stat-value text-teal">{activeData.metrics.confidence}</div>
+              </div>
+              <div className="vol-stat-card">
+                <div className="vol-stat-title">Osteophytes</div>
+                <div className="vol-stat-value">{activeData.metrics.spurs}</div>
+              </div>
+              <div className="vol-stat-card">
+                <div className="vol-stat-title">Subchondral Sclerosis</div>
+                <div className="vol-stat-value">{activeData.metrics.sclerosis}</div>
+              </div>
+            </div>
+            
+            <p style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "left", margin: 0 }}>
+              <strong>Grad-CAM Focus:</strong> The highlighted region represents the CNN's localized attention maps, focusing on narrowing at the tibiofemoral joint margins to diagnose severity.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    MAIN COMPONENT
 --------------------------------------------------------- */
 
 export default function Portfolio() {
   const [activeTag, setActiveTag] = useState("All");
   const [activeProject, setActiveProject] = useState(null);
+  const [activePlaygroundTab, setActivePlaygroundTab] = useState("volatility");
+  const [telemetry, setTelemetry] = useState({
+    uptime: 0,
+    frequency: 12.8,
+    epoch: 84,
+    vix: 16.42,
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTelemetry((prev) => {
+        const nextUptime = prev.uptime + 1;
+        const nextFreq = parseFloat((11.5 + Math.random() * 2.3).toFixed(2));
+        const nextEpoch = prev.epoch >= 100 ? 1 : prev.epoch + 1;
+        const nextVix = parseFloat((15.2 + Math.random() * 3.3).toFixed(2));
+        return {
+          uptime: nextUptime,
+          frequency: nextFreq,
+          epoch: nextEpoch,
+          vix: nextVix,
+        };
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatUptime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  };
 
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -806,6 +1353,270 @@ export default function Portfolio() {
           outline-offset: 2px;
         }
 
+        /* TELEMETRY & PLAYGROUND STYLE ADDITIONS */
+        .telemetry-panel {
+          margin-top: 36px;
+          display: flex;
+          gap: 16px;
+          align-items: center;
+          background: rgba(16, 20, 28, 0.65);
+          backdrop-filter: blur(8px);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          padding: 10px 20px;
+          font-size: 11.5px;
+          color: var(--text-muted);
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        .telemetry-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .telemetry-dot {
+          width: 6px;
+          height: 6px;
+          background: var(--teal);
+          border-radius: 50%;
+          box-shadow: 0 0 8px var(--teal);
+          display: inline-block;
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+        .telemetry-label {
+          color: var(--text-dim);
+          letter-spacing: 0.05em;
+        }
+        .telemetry-value {
+          color: var(--text-primary);
+          font-weight: 500;
+        }
+        .telemetry-sub {
+          color: var(--text-dim);
+          font-size: 10.5px;
+        }
+        .telemetry-divider {
+          width: 1px;
+          height: 14px;
+          background: var(--border);
+        }
+        .text-teal { color: var(--teal) !important; }
+        .text-amber { color: var(--amber) !important; }
+
+        .playground-container {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .playground-tabs {
+          display: flex;
+          border-bottom: 1px solid var(--border);
+          background: var(--bg-elevated);
+        }
+        .pg-tab-btn {
+          flex: 1;
+          padding: 16px 20px;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 13px;
+          background: transparent;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border-bottom: 2px solid transparent;
+          text-align: center;
+        }
+        .pg-tab-btn:hover {
+          color: var(--text-primary);
+          background: rgba(255, 255, 255, 0.02);
+        }
+        .pg-tab-btn.active {
+          color: var(--teal);
+          border-bottom-color: var(--teal);
+          background: rgba(110, 231, 192, 0.04);
+        }
+        .playground-content {
+          padding: 32px;
+          min-height: 400px;
+        }
+
+        /* VOLATILITY TOOL */
+        .vol-tool-layout {
+          display: grid;
+          grid-template-columns: 1.5fr 1fr;
+          gap: 32px;
+          align-items: start;
+        }
+        .vol-canvas-container {
+          position: relative;
+          width: 100%;
+          background: #0c1017;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          overflow: hidden;
+          cursor: crosshair;
+        }
+        .vol-canvas {
+          display: block;
+          width: 100%;
+          height: 260px;
+        }
+        .vol-info {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+        .vol-stat-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+        .vol-stat-card {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          padding: 12px;
+        }
+        .vol-stat-title {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: var(--text-dim);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .vol-stat-value {
+          font-size: 18px;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-top: 4px;
+        }
+
+        /* KNEE TOOL */
+        .knee-tool-layout {
+          display: grid;
+          grid-template-columns: 1fr 1.2fr;
+          gap: 32px;
+          align-items: start;
+        }
+        .knee-selector-column {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .knee-option-card {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          padding: 12px 16px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: left;
+          width: 100%;
+        }
+        .knee-option-card:hover {
+          border-color: var(--teal);
+        }
+        .knee-option-card.active {
+          border-color: var(--teal);
+          background: rgba(110, 231, 192, 0.04);
+        }
+        .knee-option-title {
+          font-family: 'Space Grotesk', sans-serif;
+          font-weight: 600;
+          font-size: 14px;
+          color: var(--text-primary);
+        }
+        .knee-option-desc {
+          font-size: 12px;
+          color: var(--text-muted);
+          margin-top: 4px;
+        }
+        
+        .knee-visualizer-column {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+        .knee-scanner-frame {
+          position: relative;
+          width: 100%;
+          max-width: 320px;
+          aspect-ratio: 1;
+          margin: 0 auto;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          overflow: hidden;
+          background: #0c1017;
+        }
+        .knee-svg {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+        
+        /* Scanline Sweeper animation */
+        .scanline {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(to bottom, rgba(110, 231, 192, 0), rgba(110, 231, 192, 0.8), rgba(110, 231, 192, 0));
+          box-shadow: 0 0 12px rgba(110, 231, 192, 0.6);
+          z-index: 10;
+          pointer-events: none;
+          animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+          0% { top: 0%; }
+          50% { top: 100%; }
+          100% { top: 0%; }
+        }
+
+        .knee-results {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          padding: 16px;
+        }
+        .scanner-log {
+          background: #07090d;
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          padding: 12px;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--teal);
+          min-height: 80px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        
+        @media (max-width: 900px) {
+          .vol-tool-layout, .knee-tool-layout {
+            grid-template-columns: 1fr;
+          }
+          .playground-content {
+            padding: 20px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .telemetry-panel {
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px;
+            width: 100%;
+            max-width: 320px;
+          }
+          .telemetry-divider {
+            display: none;
+          }
+        }
+
         /* RESPONSIVE */
         @media (max-width: 720px) {
           .about-grid, .skills-grid { grid-template-columns: 1fr; }
@@ -831,6 +1642,7 @@ export default function Portfolio() {
             <a href="#about" onClick={(e) => { e.preventDefault(); scrollTo("about"); }}>About</a>
             <a href="#experience" onClick={(e) => { e.preventDefault(); scrollTo("experience"); }}>Experience</a>
             <a href="#projects" onClick={(e) => { e.preventDefault(); scrollTo("projects"); }}>Projects</a>
+            <a href="#playground" onClick={(e) => { e.preventDefault(); scrollTo("playground"); }}>Playground</a>
             <a href="#skills" onClick={(e) => { e.preventDefault(); scrollTo("skills"); }}>Skills</a>
             <a href="#contact" onClick={(e) => { e.preventDefault(); scrollTo("contact"); }}>Contact</a>
           </div>
@@ -855,6 +1667,32 @@ export default function Portfolio() {
             Get in touch <ArrowUpRight size={14} />
           </a>
         </div>
+
+        {/* TELEMETRY WIDGET */}
+        <div className="telemetry-panel mono">
+          <div className="telemetry-item">
+            <span className="telemetry-dot" />
+            <span className="telemetry-label">ESP32 CORE:</span>
+            <span className="telemetry-value text-teal">ONLINE</span>
+            <span className="telemetry-sub">({formatUptime(telemetry.uptime)})</span>
+          </div>
+          <div className="telemetry-divider" />
+          <div className="telemetry-item">
+            <span className="telemetry-label">VIBE TELEMETRY:</span>
+            <span className="telemetry-value">{telemetry.frequency} Hz</span>
+          </div>
+          <div className="telemetry-divider" />
+          <div className="telemetry-item">
+            <span className="telemetry-label">TRAINING EPOCH:</span>
+            <span className="telemetry-value">{telemetry.epoch}/100</span>
+          </div>
+          <div className="telemetry-divider" />
+          <div className="telemetry-item">
+            <span className="telemetry-label">EST. QUANT VIX:</span>
+            <span className="telemetry-value text-amber">{telemetry.vix}</span>
+          </div>
+        </div>
+
         <SignalTrace amber={false} speed={16} />
       </header>
 
@@ -943,6 +1781,48 @@ export default function Portfolio() {
           </div>
         </Reveal>
       </section>
+
+      <SignalTrace amber={false} speed={20} />
+
+      {/* ML PLAYGROUND */}
+      <section className="section" id="playground">
+        <Reveal>
+          <div className="eyebrow">Interactive Simulation</div>
+          <h2 className="section-title" style={{ fontSize: 32, marginBottom: 8 }}>ML Playground</h2>
+          <p className="section-desc" style={{ color: "var(--text-muted)", marginBottom: 36, maxWidth: 650 }}>
+            Interact with live applied machine learning and quantitative forecasting models running directly in your browser.
+          </p>
+
+          <div className="playground-container">
+            {/* Tab switchers */}
+            <div className="playground-tabs">
+              <button
+                className={`pg-tab-btn ${activePlaygroundTab === "volatility" ? "active" : ""}`}
+                onClick={() => setActivePlaygroundTab("volatility")}
+              >
+                Volatility Forecasting
+              </button>
+              <button
+                className={`pg-tab-btn ${activePlaygroundTab === "knee" ? "active" : ""}`}
+                onClick={() => setActivePlaygroundTab("knee")}
+              >
+                Knee Osteoarthritis Classifier (CNN)
+              </button>
+            </div>
+
+            {/* Tab content */}
+            <div className="playground-content">
+              {activePlaygroundTab === "volatility" ? (
+                <VolatilityForecastTool />
+              ) : (
+                <KneeClassifierTool />
+              )}
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      <SignalTrace amber={true} speed={24} />
 
       {/* SKILLS */}
       <section className="section" id="skills">
